@@ -7,7 +7,7 @@
                     @if($user->isAdmin()) Admin Panel @elseif($user->isAgent()) Agent Workspace @else My Support Center @endif
                 </h2>
             </div>
-            <a href="{{ route('tickets.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+            <a href="{{ $user->isCustomer() ? route('tickets.create') : route('tickets.index') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
                 {{ $user->isCustomer() ? 'Create a ticket' : 'Open ticket' }}
             </a>
         </div>
@@ -63,7 +63,7 @@
                 <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                     <h3 class="text-lg font-semibold text-gray-900">Need help?</h3>
                     <p class="mt-1 text-sm text-gray-500">Create a ticket and our support team will get back to you.</p>
-                    <a href="{{ route('tickets.create') }}" class="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Create support ticket</a>
+                    <a href="{{ $user->isCustomer() ? route('tickets.create') : route('tickets.index') }}" class="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Create support ticket</a>
                 </section>
             @endif
 
