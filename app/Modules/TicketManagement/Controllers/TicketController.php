@@ -9,6 +9,7 @@ use App\Modules\TicketManagement\Services\SlaDeadlineCalculator;
 use App\Modules\TicketManagement\Services\TicketAssignmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -26,17 +27,22 @@ class TicketController extends Controller
         $tickets = Ticket::query()
             ->visibleTo($user)
             ->with(['creator:id,name', 'agent:id,name'])
-            ->when($request->filled('search'), fn ($q) => $q->where(function ($q) use ($request) {
-                $q->where('ticket_number', 'like', '%'.$request->string('search').'%')
-                    ->orWhere('subject', 'like', '%'.$request->string('search').'%');
-            }))
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
-            ->when($request->filled('priority'), fn ($q) => $q->where('priority', $request->string('priority')))
             ->latest()
-            ->paginate(15)
-            ->withQueryString();
+            ->get();
 
-        return view('modules.tickets.index', compact('tickets'));
+        $agents = User::query()
+            ->whereHas('roleDefinition', fn ($query) => $query->where('role_name', 'agent'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $customers = $user->isCustomer()
+            ? collect()
+            : User::query()
+                ->whereHas('roleDefinition', fn ($query) => $query->where('role_name', 'customer'))
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        $categories = $tickets->pluck('category')->filter()->unique()->sort()->values();
+
+        return view('modules.tickets.index', compact('tickets', 'agents', 'customers', 'categories'));
     }
 
     public function import(Request $request): RedirectResponse
@@ -47,9 +53,30 @@ class TicketController extends Controller
         ]);
 
         $path = $request->file('file')->store('ticket-imports');
-        ImportTicketsJob::dispatch($path, $request->user()->id);
+        $importId = (string) str()->uuid();
+        Cache::put('ticket-import:'.$importId, [
+            'status' => 'queued',
+            'total' => 0,
+            'processed' => 0,
+            'imported' => 0,
+            'invalid' => 0,
+            'duplicates' => 0,
+            'errors' => [],
+        ], now()->addDay());
+        ImportTicketsJob::dispatch($path, $request->user()->id, $importId);
 
-        return back()->with('success', 'The CSV import was queued for processing.');
+        return back()
+            ->with('success', 'The CSV import was queued for processing.')
+            ->with('import_id', $importId);
+    }
+
+    public function importStatus(Request $request, string $import): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($request->user()->isAdmin() || !$request->user()->isCustomer(), 403);
+
+        return response()->json(Cache::get('ticket-import:'.$import, [
+            'status' => 'not_found',
+        ]));
     }
 
     public function create(): View
@@ -66,7 +93,7 @@ class TicketController extends Controller
             'category' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $ticket = DB::transaction(function () use ($data, $request, $calculator) {
+        $ticket = DB::transaction(function () use ($data, $request, $calculator, $assignment) {
             $ticket = Ticket::create([
                 ...$data,
                 'ticket_number' => 'TMP-'.str()->random(20),
