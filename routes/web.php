@@ -22,6 +22,7 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
 Route::middleware(['auth', EnsureUserIsActive::class])->group(function () {
     Route::resource('tickets', TicketController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
     Route::post('/tickets/import', [TicketController::class, 'import'])->name('tickets.import');
+    Route::get('/ticket-imports/{import}/status', [TicketController::class, 'importStatus'])->name('tickets.import-status');
     Route::post('/tickets/{ticket}/replies', [TicketController::class, 'reply'])->name('tickets.reply');
     Route::post('/tickets/{ticket}/attachments', [TicketController::class, 'attachment'])->name('tickets.attachments.store');
     Route::get('/ticket-attachments/{attachment}/download', [TicketController::class, 'download'])->name('tickets.attachments.download');
