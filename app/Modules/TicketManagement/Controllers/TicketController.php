@@ -66,7 +66,7 @@ class TicketController extends Controller
             'category' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $ticket = DB::transaction(function () use ($data, $request, $calculator) {
+        $ticket = DB::transaction(function () use ($data, $request, $calculator, $assignment) {
             $ticket = Ticket::create([
                 ...$data,
                 'ticket_number' => 'TMP-'.str()->random(20),
