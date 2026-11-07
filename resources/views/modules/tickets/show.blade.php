@@ -34,5 +34,34 @@
             </div>
         @endif
         @if(!auth()->user()->isCustomer())<div class="bg-white shadow rounded p-6"><form method="post" action="{{ route('tickets.status', $ticket) }}" class="flex gap-2">@csrf @method('patch')<select name="status" class="border rounded">@foreach(['open','in_progress','waiting_customer','resolved','closed'] as $status)<option value="{{ $status }}" @selected($ticket->status === $status)>{{ str_replace('_', ' ', ucfirst($status)) }}</option>@endforeach</select><x-primary-button>Update status</x-primary-button></form></div>@endif
+        <div class="bg-white shadow rounded p-6">
+            <h3 class="font-semibold mb-3">Status history</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-left">
+                    <thead>
+                        <tr class="text-sm text-gray-500">
+                            <th class="px-3 py-2 font-semibold">Status</th>
+                            <th class="px-3 py-2 font-semibold">Created By</th>
+                            <th class="px-3 py-2 font-semibold">Updated By</th>
+                            <th class="px-3 py-2 font-semibold">Updated At</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @forelse($ticket->activities->where('event', 'status_changed')->sortByDesc('created_at') as $activity)
+                            <tr class="text-sm">
+                                <td class="px-3 py-3">{{ str_replace('_', ' ', ucfirst($activity->metadata['to'] ?? $ticket->status)) }}</td>
+                                <td class="px-3 py-3">{{ $ticket->creator?->name ?? 'System' }}</td>
+                                <td class="px-3 py-3">{{ $activity->user?->name ?? 'System' }}</td>
+                                <td class="px-3 py-3">{{ $activity->created_at?->format('Y-m-d H:i') }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="px-3 py-3 text-gray-500">No status changes yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </x-app-layout>
