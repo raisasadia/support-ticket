@@ -238,12 +238,20 @@ class TicketController extends Controller
     {
         abort_unless(!$request->user()->isCustomer(), 403);
         $data = $request->validate(['status' => ['required', 'in:open,in_progress,waiting_customer,resolved,closed']]);
+        $previousStatus = $ticket->status;
         $ticket->update([
             'status' => $data['status'],
             'resolved_at' => in_array($data['status'], ['resolved', 'closed'], true) ? now() : null,
             'closed_at' => $data['status'] === 'closed' ? now() : null,
         ]);
-        $ticket->activities()->create(['user_id' => $request->user()->id, 'event' => 'status_changed', 'description' => "Status changed to {$data['status']}."]);
+        if ($previousStatus !== $data['status']) {
+            $ticket->activities()->create([
+                'user_id' => $request->user()->id,
+                'event' => 'status_changed',
+                'description' => 'Status changed from '.str_replace('_', ' ', ucfirst($previousStatus)).' to '.str_replace('_', ' ', ucfirst($data['status'])).'.',
+                'metadata' => ['from' => $previousStatus, 'to' => $data['status']],
+            ]);
+        }
         if (in_array($data['status'], ['resolved', 'closed'], true)) {
             $ticket->creator?->notify(new TicketEventNotification($ticket, 'Ticket resolved'));
         }
