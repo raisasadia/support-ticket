@@ -39,6 +39,7 @@
                 @if(!auth()->user()->isCustomer())
                     <select name="assigned_agent" class="h-9 rounded-md border border-slate-300 px-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">All agents</option>
+                        <option value="unassigned" @selected(request('assigned_agent') === 'unassigned')>Unassigned</option>
                         @foreach($agents as $agent)
                             <option value="{{ $agent->id }}" @selected((string) request('assigned_agent') === (string) $agent->id)>{{ $agent->name }}</option>
                         @endforeach
@@ -142,7 +143,7 @@
                         && (!value('status') || row.dataset.status === value('status'))
                         && (!value('priority') || row.dataset.priority === value('priority'))
                         && (!value('category') || row.dataset.category === value('category').toLowerCase())
-                        && (!value('assigned_agent') || row.dataset.agent === value('assigned_agent'))
+                        && (!value('assigned_agent') || (value('assigned_agent') === 'unassigned' ? !row.dataset.agent : row.dataset.agent === value('assigned_agent')))
                         && (!value('customer') || row.dataset.customer === value('customer'))
                         && (!from || created >= from)
                         && (!to || created <= to)
